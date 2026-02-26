@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flujo Completo de un Data Space — Etapas (Operador/Proveedor/Consumidor)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.30);
+    }
+
+    /* Header */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 240px;
+    }
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      padding: 6px;
+      object-fit: contain;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.10);
+    }
+    .logo-note {
+      color: #718096;
+      font-size: 0.9em;
+      line-height: 1.3;
+    }
+    .title-wrap { flex: 1; min-width: 280px; }
+    h1 {
+      color: #2d3748;
+      font-size: 2.2em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #718096;
+      font-size: 1.05em;
+      line-height: 1.4;
+    }
+
+    /* Chips */
+    .chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 18px 0 6px;
+    }
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid #e2e8f0;
+      background: #f7fafc;
+      color: #4a5568;
+      font-size: 0.88em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block;
+    }
+    .dot.op { background: #5a67d8; }
+    .dot.prov { background: #f5576c; }
+    .dot.cons { background: #38f9d7; }
+    .dot.common { background: #00f2fe; }
+
+    /* Phase selector */
+    .phase-selector {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 24px 0 24px;
+      flex-wrap: wrap;
+    }
+    .phase-btn {
+      padding: 12px 18px;
+      border: 2px solid #667eea;
+      background: white;
+      color: #667eea;
+      border-radius: 25px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: all 0.25s;
+      font-size: 0.9em;
+      user-select: none;
+    }
+    .phase-btn:hover {
+      background: #667eea;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
+    }
+    .phase-btn.active {
+      background: #667eea;
+      color: white;
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.35);
+    }
+
+    /* Sections */
+    .phase { display: none; animation: fadeIn 0.45s; }
+    .phase.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .phase-title {
+      font-size: 1.85em;
+      color: #2d3748;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #667eea;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .phase-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #667eea;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
+
+    .diagram {
+      margin: 18px 0 22px;
+      padding: 22px;
+      background: #f7fafc;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+    }
+
+    /* Actors */
+    .flow-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 10px 0 14px;
+    }
+    .flow-row {
+      display: flex;
+      align-items: stretch;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .actor {
+      flex: 1;
+      padding: 18px;
+      border-radius: 14px;
+      text-align: center;
+      min-height: 96px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.10);
+      transition: transform 0.22s;
+    }
+    .actor:hover { transform: scale(1.02); }
+    .actor-title { font-weight: 900; font-size: 1.05em; margin-bottom: 8px; letter-spacing: 0.2px; }
+    .actor-desc { font-size: 0.92em; opacity: 0.9; line-height: 1.35; }
+
+    .op { background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%); color: #fff; }
+    .provider { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
+    .consumer { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #fff; }
+    .common { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
+    .identity { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: #fff; }
+    .clearing { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #fff; }
+
+    .arrow {
+      font-size: 1.8em;
+      color: #667eea;
+      font-weight: 900;
+      align-self: center;
+      padding: 0 4px;
+    }
+    .vertical-arrow {
+      text-align: center;
+      font-size: 1.8em;
+      color: #667eea;
+      margin: 2px 0;
+      font-weight: 900;
+    }
+
+    /* Step list */
+    .step-list {
+      background: #fff;
+      padding: 22px;
+      border-radius: 14px;
+      border-left: 4px solid #667eea;
+      margin: 16px 0;
+    }
+    .step-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-title { font-weight: 800; color: #2d3748; margin-bottom: 6px; }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #667eea;
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      margin-right: 10px;
+      font-weight: 900;
+      font-size: 0.85em;
+    }
+    .step-desc { color: #4a5568; margin-left: 38px; line-height: 1.65; }
+
+    /* Highlight + summary */
+    .highlight-box {
+      background: #fef5e7;
+      border-left: 4px solid #f39c12;
+      padding: 18px;
+      margin: 16px 0;
+      border-radius: 10px;
+      color: #4a5568;
+      line-height: 1.6;
+    }
+    .highlight-box strong { color: #d68910; }
+    .summary-box {
+      background: #edf2f7;
+      border-left: 4px solid #667eea;
+      padding: 16px;
+      margin-top: 14px;
+      border-radius: 10px;
+      color: #2d3748;
+      line-height: 1.6;
+    }
+    .summary-box strong { color: #2d3748; }
+
+    /* Info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .info-card {
+      background: #fff;
+      padding: 16px;
+      border-radius: 14px;
+      border: 2px solid #e2e8f0;
+      transition: all 0.22s;
+    }
+    .info-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 8px 18px rgba(102, 126, 234, 0.18);
+    }
+    .info-card-title {
+      font-weight: 900;
+      color: #667eea;
+      margin-bottom: 8px;
+      font-size: 1.05em;
+    }
+    .info-card-content { color: #4a5568; line-height: 1.65; }
+
+    /* Paid/free badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 0.82em;
+      border: 1px solid rgba(0,0,0,0.10);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+    }
+    .badge.free { background: #e6fffa; color: #065f46; border-color: rgba(6,95,70,0.22); }
+    .badge.paid { background: #fff5f5; color: #7f1d1d; border-color: rgba(127,29,29,0.20); }
+    .badge .tiny-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .badge.free .tiny-dot { background: #10b981; }
+    .badge.paid .tiny-dot { background: #ef4444; }
+
+    /* Code block */
+    .code-block {
+      background: #2d3748;
+      color: #a0aec0;
+      padding: 16px;
+      border-radius: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.86em;
+      overflow-x: auto;
+      margin: 14px 0;
+      line-height: 1.55;
+    }
+    .code-block .keyword { color: #f687b3; font-weight: 800; }
+    .code-block .string { color: #68d391; }
+    .code-block .number { color: #fbb6ce; }
+
+    /* Legend + footer */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 18px 0 0;
+      padding: 16px;
+      background: #fff;
+      border-radius: 14px;
+      border: 2px solid #e2e8f0;
+    }
+    .legend h3 { width: 100%; color: #2d3748; margin-bottom: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 10px; }
+    .legend-color { width: 28px; height: 28px; border-radius: 8px; }
+    .legend-label { font-size: 0.92em; color: #4a5568; }
+
+    /* Glosario */
+    .glossary-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 10px 0 16px;
+    }
+    .search {
+      flex: 1;
+      min-width: 240px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+      font-size: 0.95em;
+    }
+    .search:focus { border-color: #667eea; box-shadow: 0 0 0 4px rgba(102,126,234,0.18); }
+    .gloss-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 14px;
+    }
+    .term {
+      border: 2px solid #e2e8f0;
+      border-radius: 14px;
+      background: #fff;
+      padding: 14px;
+    }
+    .term-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .term-code {
+      font-weight: 1000;
+      color: #2d3748;
+      letter-spacing: 0.3px;
+    }
+    .term-type {
+      font-size: 0.82em;
+      color: #667eea;
+      font-weight: 900;
+      background: #edf2ff;
+      border: 1px solid rgba(102,126,234,0.22);
+      padding: 4px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .term-desc { color: #4a5568; line-height: 1.6; }
+    .term-where {
+      margin-top: 10px;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px;
+      color: #4a5568;
+      line-height: 1.5;
+      font-size: 0.92em;
+    }
+    .term-where strong { color: #2d3748; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container { padding: 18px; }
+      h1 { font-size: 1.6em; }
+      .arrow { transform: rotate(90deg); }
+      .flow-row { flex-direction: column; }
+      .logo-wrap { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header with logo (embedded). You can replace the <img> src if you want. -->
+    <div class="topbar">
+      <div class="logo-wrap">
+        <img class="logo"
+             alt="Logo empresa"
+             src="" />
+        <div class="logo-note">
+          <div><strong>Logo empresa</strong></div>
+          <div>Si quieres reemplazarlo: cambia el <code>src</code> del <code>&lt;img class="logo"&gt;</code>.</div>
+        </div>
+      </div>
+      <div class="title-wrap">
+        <h1>🔄 Flujo completo de un Data Space</h1>
+        <p class="subtitle">
+          Etapas end-to-end (Operador → Onboarding → Conectores → Assets → Contratos → Transferencia → Evidencia → Revocación).
+          
+        </p>
+      </div>
+    </div>
+
+    <div class="chips">
+      <span class="chip"><span class="dot op"></span><strong>Operador</strong>: reglas, onboarding, servicios comunes</span>
+      <span class="chip"><span class="dot prov"></span><strong>Proveedor</strong>: publica assets/ofertas, entrega datos</span>
+      <span class="chip"><span class="dot cons"></span><strong>Consumidor</strong>: descubre, negocia, consume</span>
+      <span class="chip"><span class="dot common"></span><strong>Servicios comunes</strong>: broker, trust, evidencia, etc.</span>
+    </div>
+
+    <!-- Nav -->
+    <div class="phase-selector" id="phaseSelector"></div>
+
+    <!-- INTRO -->
+    <div class="phase active" id="phase-intro">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">i</span>Cómo leer estas etapas</h2>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Dos “planos” siempre presentes</div>
+            <div class="step-desc">
+              <strong>Control Plane (CP)</strong>: registra assets, publica catálogos, negocia contratos, autoriza transferencias.<br/>
+              <strong>Data Plane (DP)</strong>: mueve “bytes” (datos) y aplica controles técnicos durante la transferencia.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Etapas con y sin datos reales</div>
+            <div class="step-desc">
+              Antes de la transferencia, el Data Space opera casi solo con <strong>metadatos y políticas</strong>.
+              Los datos reales viajan <strong>directamente</strong> entre proveedor y consumidor cuando existe contrato activo.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Gratis vs De pago</div>
+            <div class="step-desc">
+              Un asset “de pago” se define en la <strong>Oferta</strong> (Etapa 3), condiciona el <strong>Contrato</strong> (Etapa 5),
+              impacta la <strong>Transferencia</strong> (Etapa 6) y se registra en <strong>Auditoría</strong> (Etapa 7) para facturación.
+            </div>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <strong>Idea clave:</strong> el “marketplace/portal” es la interfaz humana; los <strong>conectores</strong> son el mecanismo técnico
+          para soberanía, negociación y transferencia segura.
+        </div>
+
+        <div class="summary-box">
+          <strong>Qué obtienes con este documento:</strong> una guía por etapas (0 a 8), un diagrama completo, y un glosario para tu documentación.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 0 -->
+    <div class="phase" id="phase-0">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">0</span>Etapa 0 — Preparación del Data Space por el Operador</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor op">
+              <div class="actor-title">🧭 Operador / Gobernanza</div>
+              <div class="actor-desc">Reglas, niveles de confianza, onboarding, políticas del ecosistema</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">🧩 Servicios comunes</div>
+              <div class="actor-desc">Broker (catálogo), Trust Registry, Evidencias, Portales/APIs</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor identity">
+              <div class="actor-title">🪪 Identidad y confianza</div>
+              <div class="actor-desc">mTLS / OIDC, CA/Trust anchors, atributos/claims, revocación</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Definir gobernanza</div>
+            <div class="step-desc">
+              Quién puede entrar, niveles de confianza, reglas de publicación/uso, auditoría, disputas y sanciones.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Definir identidad y confianza</div>
+            <div class="step-desc">
+              Certificados aceptados (CA/anchors), mTLS, OIDC/JWT, rotación/expiración, listas de confianza.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Desplegar servicios comunes</div>
+            <div class="step-desc">
+              Broker (si aplica), registro de participantes (trust registry), evidencias/auditoría (clearing house o equivalente),
+              portales y APIs de operador.
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              Route53 + ACM + WAF (exposición segura)<br/>
+              EKS/ECS/Lambda (servicios del operador)<br/>
+              RDS/DynamoDB (persistencia)<br/>
+              S3 (documentos/contratos/evidencias)<br/>
+              CloudWatch + KMS/Secrets Manager
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">🧠 Programación</div>
+            <div class="info-card-content">
+              Infra as Code (Terraform/CDK)<br/>
+              APIs de onboarding/registro/administración<br/>
+              Controles de seguridad y observabilidad
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">📌 Nota (IDS/Gaia-X/Catena-X)</div>
+            <div class="info-card-content">
+              Los ecosistemas comparten conceptos (identidad, confianza, catálogos, contratos, evidencias), pero
+              pueden usar <strong>implementaciones distintas</strong> (p.ej., Tractus-X/EDC + OIDC/mTLS + registro de confianza).
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 0:</strong> el Data Space queda “operable” (reglas + servicios comunes + identidad/confianza),
+          listo para onboardear participantes.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 1 -->
+    <div class="phase" id="phase-1">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">1</span>Etapa 1 — Onboarding de Participantes</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor provider">
+              <div class="actor-title">🏢 Participante</div>
+              <div class="actor-desc">Puede ser proveedor, consumidor o ambos</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor op">
+              <div class="actor-title">🧾 Portal del Operador</div>
+              <div class="actor-desc">Registro, verificación, aceptación de términos</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor identity">
+              <div class="actor-title">🔐 Trust / IdP</div>
+              <div class="actor-desc">Certificados, claims/roles, trust store, revocación</div>
+            </div>
+          </div>
+
+          <div class="vertical-arrow">↓</div>
+
+          <div class="flow-row">
+            <div class="actor common">
+              <div class="actor-title">📜 Trust Registry</div>
+              <div class="actor-desc">Alta de organización y atributos confiables (si aplica)</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor provider">
+              <div class="actor-title">🔌 Registro del conector</div>
+              <div class="actor-desc">Endpoints CP/DP, health checks, datos técnicos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Registro de organización y usuarios</div>
+            <div class="step-desc">Alta del participante (provider/consumer/ambos) y de usuarios humanos (portal).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Verificación y aceptación</div>
+            <div class="step-desc">Verificación legal (según reglas) + aceptación del marco de gobernanza.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Emisión/registro de certificados y atributos</div>
+            <div class="step-desc">Certificados (mTLS) + atributos (roles/claims) en IdP/Trust (según el modelo del espacio).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Registro del conector (CP/DP)</div>
+            <div class="step-desc">Guardar endpoints, validar reachability, health, y prerequisitos de seguridad.</div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              Cognito (login humano) o IdP federado<br/>
+              RDS (participantes/estados)<br/>
+              Secrets Manager/KMS (claves)<br/>
+              CloudWatch (logs onboarding)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">📌 Cuándo NO participa</div>
+            <div class="info-card-content">
+              Normalmente <strong>Broker</strong> y <strong>Clearing House</strong> no son obligatorios aquí
+              (salvo eventos administrativos).
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 1:</strong> el participante queda habilitado (identidad/roles + registro técnico del conector)
+          para operar en el Data Space.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 2 -->
+    <div class="phase" id="phase-2">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">2</span>Etapa 2 — Activación del Conector del Participante</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor provider">
+              <div class="actor-title">🔌 Conector (Participante)</div>
+              <div class="actor-desc">Despliegue CP/DP + configuración de seguridad</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor identity">
+              <div class="actor-title">🔐 mTLS / OIDC</div>
+              <div class="actor-desc">Trust store, validación de identidad, expiración/rotación</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">✅ Health & Reachability</div>
+              <div class="actor-desc">Pruebas de conectividad y endpoints (CP/DP)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Desplegar CP/DP</div>
+            <div class="step-desc">
+              Control Plane (catálogo/negociación/autorización) + Data Plane (transferencia).
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Configurar mTLS y truststore</div>
+            <div class="step-desc">
+              Certificados, trust anchors, validación de cadena, y (si aplica) OCSP/CRL.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Configurar identidad (OIDC/JWT)</div>
+            <div class="step-desc">
+              Issuer confiable, audiencias, claims/roles; políticas de expiración/renovación de tokens.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Comprobar “health”</div>
+            <div class="step-desc">
+              Verificar endpoints del CP/DP, DNS/TLS, rutas, y seguridad de red.
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS (si el conector vive en tu infra)</div>
+            <div class="info-card-content">
+              EKS/ECS (deploy) + ALB/NLB (exposición)<br/>
+              VPC/Security Groups (red)<br/>
+              ACM (TLS) si aplica<br/>
+              CloudWatch (observabilidad)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">📌 Cuándo NO participan</div>
+            <div class="info-card-content">
+              <strong>Broker</strong> y <strong>Clearing House</strong> todavía no son obligatorios.
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 2:</strong> conector listo y seguro (CP/DP) para publicar assets y operar negociaciones/transferencias.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 3 -->
+    <div class="phase" id="phase-3">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">3</span>Etapa 3 — Creación y Publicación de Data Assets</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor provider">
+              <div class="actor-title">👤 Proveedor</div>
+              <div class="actor-desc">Crea Asset + Policy + Offer y publica</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor provider">
+              <div class="actor-title">🧠 Control Plane (Proveedor)</div>
+              <div class="actor-desc">Registra metadatos y expone catálogo (no datos)</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">📚 Broker (opcional)</div>
+              <div class="actor-desc">Indexa metadata para discovery centralizado</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Creación del Data Asset</div>
+            <div class="step-desc">
+              Metadatos (nombre, descripción, dominio, tipo, formato, versión) + referencia técnica (S3 path / API / DB).<br/>
+              <strong>El asset no contiene el dato</strong>: contiene la referencia y configuración para que el DP acceda cuando toque.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Definición de Policy (ejecutable)</div>
+            <div class="step-desc">
+              Quién accede (rol), propósito, vigencia, límites, geografía, obligaciones (atribución, no redistribución, etc.).
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Creación de Offer (Oferta)</div>
+            <div class="step-desc">
+              Offer = Asset + Policy + condiciones.<br/>
+              Incluye <strong>precio</strong> y estado (publicado/despublicado):<br/>
+              <span class="badge free"><span class="tiny-dot"></span>Gratis</span>
+              <span style="margin-left:8px" class="badge paid"><span class="tiny-dot"></span>De pago</span>
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Publicación</div>
+            <div class="step-desc">
+              El Control Plane expone el catálogo (por protocolo si aplica). Otros conectores/portales pueden descubrirlo.
+            </div>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <strong>📌 Importante:</strong> El <strong>Broker</strong> indexa metadatos; no toca datos reales.
+          El <strong>Data Plane</strong> aún no participa.
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              Backend portal (si creas assets desde UI)<br/>
+              RDS/DynamoDB (catálogo interno/espejo)<br/>
+              S3 (si el recurso es archivo / plantillas / esquemas)<br/>
+              CloudWatch (logs)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">🧩 Programación</div>
+            <div class="info-card-content">
+              APIs Asset lifecycle (create/update/publish)<br/>
+              Validación de campos y estados (DRAFT/PUBLISHED/DEPRECATED/ARCHIVED)<br/>
+              Versionado técnico y (si aplica) semántico
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">📌 Catena-X / federación</div>
+            <div class="info-card-content">
+              Puede haber discovery directo entre conectores (sin broker obligatorio) dependiendo del patrón del ecosistema.
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 3:</strong> el asset queda visible en catálogo (directo o vía broker) con policy y offer
+          (incluyendo si es gratis o de pago).
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 4 -->
+    <div class="phase" id="phase-4">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">4</span>Etapa 4 — Descubrimiento de Assets</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor consumer">
+              <div class="actor-title">🔍 Consumidor</div>
+              <div class="actor-desc">Busca assets y revisa policies/ofertas</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">📚 Broker (si existe)</div>
+              <div class="actor-desc">Búsqueda centralizada (metadatos)</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor provider">
+              <div class="actor-title">🧠 Catálogo del Proveedor (CP)</div>
+              <div class="actor-desc">Detalle real de ofertas/policies (catálogo “source of truth”)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Búsqueda</div>
+            <div class="step-desc">
+              El consumidor busca vía Broker o consulta directa a catálogos de proveedores (peer-to-peer).
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Revisión de la oferta</div>
+            <div class="step-desc">
+              Visualiza policy, restricciones, y si el asset es <span class="badge free"><span class="tiny-dot"></span>Gratis</span>
+              o <span class="badge paid"><span class="tiny-dot"></span>De pago</span>.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Decisión</div>
+            <div class="step-desc">
+              Si cumple requisitos, inicia negociación (Etapa 5). Si no, continúa buscando.
+            </div>
+          </div>
+        </div>
+
+        <div class="code-block">
+<span class="keyword">GET</span> /catalog?query=<span class="string">"movilidad"</span>&price=<span class="string">paid|free</span>
+<span class="keyword">Response:</span>
+{
+  <span class="string">"results"</span>: [
+    { <span class="string">"assetId"</span>: <span class="string">"asset-001"</span>, <span class="string">"title"</span>: <span class="string">"Tráfico en tiempo real"</span>, <span class="string">"priceType"</span>: <span class="string">"paid"</span> },
+    { <span class="string">"assetId"</span>: <span class="string">"asset-002"</span>, <span class="string">"title"</span>: <span class="string">"Calendario de eventos"</span>, <span class="string">"priceType"</span>: <span class="string">"free"</span> }
+  ]
+}
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">📌 Cuándo NO participa</div>
+            <div class="info-card-content">
+              <strong>Clearing House</strong> no participa; <strong>Data Plane</strong> no participa.
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              Frontend (búsqueda humana)<br/>
+              Backend (agregación/filtrado)<br/>
+              Cache opcional (ElastiCache/Redis)
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 4:</strong> el consumidor identifica una oferta compatible (y entiende si es gratis o de pago)
+          antes de iniciar negociación.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 5 -->
+    <div class="phase" id="phase-5">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">5</span>Etapa 5 — Negociación y Contrato</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor consumer">
+              <div class="actor-title">🧠 CP Consumidor</div>
+              <div class="actor-desc">Inicia negociación por una Offer</div>
+            </div>
+            <span class="arrow">⇄</span>
+            <div class="actor provider">
+              <div class="actor-title">🧠 CP Proveedor</div>
+              <div class="actor-desc">Evalúa policy, identidad, atributos y decide</div>
+            </div>
+          </div>
+          <div class="flow-row">
+            <div class="actor identity">
+              <div class="actor-title">🔐 IdP / Trust</div>
+              <div class="actor-desc">Valida identidad (mTLS/OIDC) y claims/roles</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">🧾 Evidencia (opcional)</div>
+              <div class="actor-desc">Clearing House / ledger: “contract signed”</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Inicio de negociación</div>
+            <div class="step-desc">
+              El consumidor selecciona una Offer e inicia una Contract Negotiation desde su CP hacia el CP del proveedor.
+              <strong>No hay transferencia</strong>; todo ocurre en CP.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Creación del Contract Agreement</div>
+            <div class="step-desc">
+              Si es exitoso, se crea el <strong>Agreement</strong> en ambos CP (IDs, vigencia, policy, participantes).
+              El contrato operativo vive en los conectores.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Si el asset es de pago</div>
+            <div class="step-desc">
+              El acuerdo pasa por estado “pendiente” hasta <strong>pago y firma</strong> (según tu gobernanza).<br/>
+              <span class="badge paid"><span class="tiny-dot"></span>De pago</span> → contrato condicionado a pago.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Estados típicos</div>
+            <div class="step-desc">
+              Solicitado → Rechazado / Pendiente de firma-pago → Firmado-pagado → Aceptado/ACTIVE → TERMINATED (expirado/revocado).
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico (si haces contrato “interno”)</div>
+            <div class="info-card-content">
+              RDS (estado del agreement)<br/>
+              KMS (firmas internas)<br/>
+              S3 Object Lock (contratos/evidencias inmutables)<br/>
+              CloudWatch (audit logs)<br/>
+              QLDB opcional (ledger)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">📌 Cuándo NO participa</div>
+            <div class="info-card-content">
+              <strong>Data Plane</strong> no participa aún.
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 5:</strong> existe un contrato/Agreement operativo (ACTIVE o condicionado a firma/pago) que
+          habilita la transferencia en la siguiente etapa.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 6 -->
+    <div class="phase" id="phase-6">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">6</span>Etapa 6 — Transferencia / Consumo del Dato</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor provider">
+              <div class="actor-title">🧠 CP Proveedor</div>
+              <div class="actor-desc">Autoriza: identidad + contrato ACTIVE + policy cumplida</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor provider">
+              <div class="actor-title">🚚 Data Plane</div>
+              <div class="actor-desc">Mueve bytes (pull/push/proxy) y aplica controles técnicos</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor consumer">
+              <div class="actor-title">📥 Consumidor</div>
+              <div class="actor-desc">Recibe datos bajo restricciones del contrato</div>
+            </div>
+          </div>
+
+          <div class="flow-row">
+            <div class="actor common">
+              <div class="actor-title">🧾 Evidencia (opcional)</div>
+              <div class="actor-desc">Eventos: transfer_started / transfer_completed</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor identity">
+              <div class="actor-title">🔐 Revalidación</div>
+              <div class="actor-desc">Token/cert válido, no revocado, vigencia OK</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Validación previa (CP)</div>
+            <div class="step-desc">
+              Identidad válida (mTLS/OIDC), Agreement ACTIVE, vigencia, policy (propósito, límites, geografía), no revocado.
+              Si falla → no se inicia transferencia.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Orquestación del transfer process</div>
+            <div class="step-desc">
+              El consumidor inicia un Transfer Process; el CP crea <code>transferProcessId</code> y ordena al DP ejecutar.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Ejecución (DP)</div>
+            <div class="step-desc">
+              DP accede al recurso real (S3/API/DB) y transfiere (pull/push/proxy) usando TLS/mTLS.
+              No guarda el dataset permanentemente.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Si el asset es de pago</div>
+            <div class="step-desc">
+              El CP puede bloquear/limitar la transferencia hasta confirmar “pago OK”.
+              <span class="badge paid"><span class="tiny-dot"></span>De pago</span> → habilitación condicionada.
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              S3 (dataset) + KMS (cifrado)<br/>
+              Signed URLs (entrega controlada) / IAM roles DP<br/>
+              API Gateway/Lambda/ECS (si es API-based)<br/>
+              CloudWatch (logs/métricas)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">🧩 Programación</div>
+            <div class="info-card-content">
+              Orquestación transfer process + validación policy/contract<br/>
+              Emisión de credenciales temporales (JWT / signed URL)<br/>
+              Manejo de errores, retries y métricas de uso
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 6:</strong> datos transferidos/consumidos solo si contrato/policy lo permiten
+          (y si es de pago, con la condición cumplida).
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 7 -->
+    <div class="phase" id="phase-7">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">7</span>Etapa 7 — Auditoría y Evidencia</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor common">
+              <div class="actor-title">🧾 Clearing House / Ledger</div>
+              <div class="actor-desc">Evidencias: contrato, transfer, rechazos, consumo</div>
+            </div>
+            <span class="arrow">←</span>
+            <div class="actor provider">
+              <div class="actor-title">📜 Logs Conectores</div>
+              <div class="actor-desc">Eventos normalizados + hashes/firmas</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor consumer">
+              <div class="actor-title">📌 Auditoría / Compliance</div>
+              <div class="actor-desc">Trazabilidad y no repudio</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Registrar eventos</div>
+            <div class="step-desc">
+              contract_created/signed, transfer_started/completed, descargas, rechazos, revocaciones.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>No repudio</div>
+            <div class="step-desc">
+              Hash chaining, timestamps, firmas (si aplica). El clearing guarda evidencia, no datos.
+            </div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Si es de pago</div>
+            <div class="step-desc">
+              Registrar consumos (requests/GB/descargas) para <strong>facturación</strong> y disputas.
+            </div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              CloudWatch Logs (eventos)<br/>
+              S3 Object Lock (evidencias)<br/>
+              QLDB opcional (ledger)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">🧩 Programación</div>
+            <div class="info-card-content">
+              Event model normalizado<br/>
+              Firma y hash chaining si aplica<br/>
+              APIs/consultas de auditoría
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 7:</strong> trazabilidad verificable (quién/qué/cuándo/contrato) sin exponer datos,
+          habilitando compliance y facturación si aplica.
+        </div>
+      </div>
+    </div>
+
+    <!-- ETAPA 8 -->
+    <div class="phase" id="phase-8">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">8</span>Etapa 8 — Revocación, Expiración, Rotación</h2>
+
+        <div class="flow-diagram">
+          <div class="flow-row">
+            <div class="actor identity">
+              <div class="actor-title">🔐 Certs / Tokens</div>
+              <div class="actor-desc">Expiran o se revocan → bloqueo mTLS / renovación OIDC</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor provider">
+              <div class="actor-title">🧠 Conector (enforcement)</div>
+              <div class="actor-desc">Revalida por transferencia/negociación</div>
+            </div>
+            <span class="arrow">→</span>
+            <div class="actor common">
+              <div class="actor-title">🔔 Operación</div>
+              <div class="actor-desc">Alarmas, jobs programados, notificaciones</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">1</span>Certificados vencen/revocan</div>
+            <div class="step-desc">Se bloquea comunicación mTLS (fallará en handshake o validación de cadena/revocación).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">2</span>Tokens expiran</div>
+            <div class="step-desc">Se renuevan con IdP (OIDC). Si no, el CP/DP rechaza requests.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">3</span>Contratos expiran o se revocan</div>
+            <div class="step-desc">Acceso se revoca (CP no autoriza transferencias nuevas; DP no debe continuar).</div>
+          </div>
+          <div class="step-item">
+            <div class="step-title"><span class="step-number">4</span>Políticas cambian</div>
+            <div class="step-desc">Se generan nuevas ofertas/versiones; las anteriores pueden deprecarse/archivarse.</div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-card-title">☁️ AWS típico</div>
+            <div class="info-card-content">
+              CloudWatch alarms (expiración)<br/>
+              Secrets Manager/ACM (rotación)<br/>
+              EventBridge (jobs programados)<br/>
+              Notificaciones (SNS/Email)
+            </div>
+          </div>
+          <div class="info-card">
+            <div class="info-card-title">🧩 Programación</div>
+            <div class="info-card-content">
+              Lifecycle management (certs/tokens/contracts)<br/>
+              Revalidación en cada negociación/transfer<br/>
+              Notificaciones y remediación
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la etapa 8:</strong> el ecosistema se mantiene seguro y vigente en el tiempo (rotación/revocación)
+          sin romper la soberanía ni la gobernanza.
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOSARIO -->
+    <div class="phase" id="phase-glossary">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">G</span>Glosario de términos</h2>
+
+        <div class="glossary-toolbar">
+          <input id="glossSearch" class="search" placeholder="Buscar término… (ej: CP, DP, EDC, Tractus-X, OIDC, mTLS, Clearing House)" />
+          <span class="chip"><strong>Tip:</strong> escribe “pago” para ver lo relacionado a monetización</span>
+        </div>
+
+        <div class="gloss-grid" id="glossGrid"></div>
+
+        <div class="summary-box">
+          <strong>Nota:</strong> si tu ecosistema usa nombres diferentes, conserva el significado:
+          identidad + confianza + catálogo + contrato + transferencia + evidencia.
+        </div>
+      </div>
+    </div>
+
+    <!-- VISTA COMPLETA -->
+    <div class="phase" id="phase-full">
+      <div class="diagram">
+        <h2 class="phase-title"><span class="phase-number">∞</span>Vista completa — End-to-End (Operador / Proveedor / Consumidor)</h2>
+
+        <div class="highlight-box">
+          <strong>Lectura rápida:</strong> arriba “Operador”, luego “Onboarding”, después “Conectores”, “Assets/Offers (Gratis/De pago)”,
+          “Contrato”, “Transferencia” y “Evidencia”, cerrando con “Revocación/Rotación”.
+        </div>
+
+        <div style="background:#fff; padding:18px; border-radius:14px; border:2px solid #e2e8f0;">
+          <svg viewBox="0 0 980 1780" style="width:100%; height:auto; display:block; margin:0 auto;">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#667eea"></polygon>
+              </marker>
+              <marker id="arrowheadStart" markerWidth="10" markerHeight="10" refX="1" refY="3" orient="auto">
+                <polygon points="10 0, 0 3, 10 6" fill="#667eea"></polygon>
+              </marker>
+
+              <linearGradient id="gradOp" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#667eea"/>
+                <stop offset="100%" stop-color="#5a67d8"/>
+              </linearGradient>
+              <linearGradient id="gradProv" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f093fb"/>
+                <stop offset="100%" stop-color="#f5576c"/>
+              </linearGradient>
+              <linearGradient id="gradCons" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#43e97b"/>
+                <stop offset="100%" stop-color="#38f9d7"/>
+              </linearGradient>
+              <linearGradient id="gradCommon" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#4facfe"/>
+                <stop offset="100%" stop-color="#00f2fe"/>
+              </linearGradient>
+              <linearGradient id="gradId" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#30cfd0"/>
+                <stop offset="100%" stop-color="#330867"/>
+              </linearGradient>
+              <linearGradient id="gradClear" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fa709a"/>
+                <stop offset="100%" stop-color="#fee140"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Title -->
+            <text x="490" y="34" text-anchor="middle" font-size="20" font-weight="900" fill="#2d3748">
+              FLUJO COMPLETO (ETAPAS 0–8)
+            </text>
+
+            <!-- Swimlane labels -->
+            <rect x="40" y="60" width="280" height="40" rx="10" fill="url(#gradProv)"/>
+            <text x="180" y="86" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">PROVEEDOR</text>
+
+            <rect x="350" y="60" width="280" height="40" rx="10" fill="url(#gradCommon)"/>
+            <text x="490" y="86" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">SERVICIOS COMUNES / OPERADOR</text>
+
+            <rect x="660" y="60" width="280" height="40" rx="10" fill="url(#gradCons)"/>
+            <text x="800" y="86" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">CONSUMIDOR</text>
+
+            <!-- Etapa 0 -->
+            <text x="490" y="140" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 0: PREPARACIÓN (OPERADOR)</text>
+            <rect x="350" y="160" width="280" height="80" rx="14" fill="url(#gradOp)"/>
+            <text x="490" y="192" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Gobernanza + Identidad</text>
+            <text x="490" y="214" text-anchor="middle" font-size="11" fill="#fff">Reglas • Trust anchors • Servicios comunes</text>
+
+            <path d="M 490 240 L 490 275" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 1 -->
+            <text x="490" y="305" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 1: ONBOARDING</text>
+
+            <rect x="40" y="330" width="280" height="90" rx="14" fill="url(#gradProv)"/>
+            <text x="180" y="362" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Participante</text>
+            <text x="180" y="384" text-anchor="middle" font-size="11" fill="#fff">Alta org/usuarios • endpoints CP/DP</text>
+
+            <rect x="350" y="330" width="280" height="90" rx="14" fill="url(#gradCommon)"/>
+            <text x="490" y="362" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Portal + Trust Registry</text>
+            <text x="490" y="384" text-anchor="middle" font-size="11" fill="#fff">Verificación • términos • atributos</text>
+
+            <rect x="660" y="330" width="280" height="90" rx="14" fill="url(#gradId)"/>
+            <text x="800" y="362" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">IdP / Trust</text>
+            <text x="800" y="384" text-anchor="middle" font-size="11" fill="#fff">mTLS/OIDC • roles/claims • revocación</text>
+
+            <path d="M 490 420 L 490 455" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 2 -->
+            <text x="490" y="485" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 2: ACTIVACIÓN DE CONECTOR</text>
+            <rect x="40" y="510" width="280" height="90" rx="14" fill="url(#gradProv)"/>
+            <text x="180" y="542" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Conector (CP/DP)</text>
+            <text x="180" y="564" text-anchor="middle" font-size="11" fill="#fff">Deploy • config • health • mTLS</text>
+
+            <rect x="350" y="510" width="280" height="90" rx="14" fill="url(#gradId)"/>
+            <text x="490" y="542" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Identidad</text>
+            <text x="490" y="564" text-anchor="middle" font-size="11" fill="#fff">Issuer • truststore • expiración</text>
+
+            <rect x="660" y="510" width="280" height="90" rx="14" fill="url(#gradCons)"/>
+            <text x="800" y="542" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Conector (CP/DP)</text>
+            <text x="800" y="564" text-anchor="middle" font-size="11" fill="#fff">Listo para discovery/negociación</text>
+
+            <path d="M 490 600 L 490 640" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 3 -->
+            <text x="490" y="672" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 3: ASSETS + POLICIES + OFFERS</text>
+            <rect x="40" y="700" width="280" height="110" rx="14" fill="url(#gradProv)"/>
+            <text x="180" y="734" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Proveedor publica</text>
+            <text x="180" y="756" text-anchor="middle" font-size="11" fill="#fff">Asset • Policy • Offer</text>
+            <text x="180" y="778" text-anchor="middle" font-size="11" fill="#fff">Precio: Gratis / De pago</text>
+
+            <rect x="350" y="700" width="280" height="110" rx="14" fill="url(#gradCommon)"/>
+            <text x="490" y="734" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Broker (opcional)</text>
+            <text x="490" y="756" text-anchor="middle" font-size="11" fill="#fff">Indexa metadatos</text>
+            <text x="490" y="778" text-anchor="middle" font-size="11" fill="#fff">No toca los datos</text>
+
+            <rect x="660" y="700" width="280" height="110" rx="14" fill="url(#gradCons)"/>
+            <text x="800" y="734" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Consumidor ve catálogo</text>
+            <text x="800" y="756" text-anchor="middle" font-size="11" fill="#fff">Ofertas + policies</text>
+            <text x="800" y="778" text-anchor="middle" font-size="11" fill="#fff">Filtro: paid/free</text>
+
+            <path d="M 490 810 L 490 850" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 4 -->
+            <text x="490" y="882" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 4: DESCUBRIMIENTO</text>
+            <rect x="660" y="910" width="280" height="90" rx="14" fill="url(#gradCons)"/>
+            <text x="800" y="942" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Buscar / Evaluar</text>
+            <text x="800" y="964" text-anchor="middle" font-size="11" fill="#fff">Broker o catálogo del proveedor</text>
+
+            <path d="M 800 1000 L 800 1040" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 5 -->
+            <text x="490" y="1072" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 5: NEGOCIACIÓN Y CONTRATO</text>
+            <rect x="40" y="1100" width="280" height="110" rx="14" fill="url(#gradProv)"/>
+            <text x="180" y="1134" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">CP Proveedor</text>
+            <text x="180" y="1156" text-anchor="middle" font-size="11" fill="#fff">Acepta / rechaza</text>
+            <text x="180" y="1178" text-anchor="middle" font-size="11" fill="#fff">Agreement ACTIVE</text>
+
+            <rect x="350" y="1100" width="280" height="110" rx="14" fill="url(#gradId)"/>
+            <text x="490" y="1134" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">IdP / Trust</text>
+            <text x="490" y="1156" text-anchor="middle" font-size="11" fill="#fff">Valida identidad/claims</text>
+            <text x="490" y="1178" text-anchor="middle" font-size="11" fill="#fff">mTLS + OIDC</text>
+
+            <rect x="660" y="1100" width="280" height="110" rx="14" fill="url(#gradCons)"/>
+            <text x="800" y="1134" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">CP Consumidor</text>
+            <text x="800" y="1156" text-anchor="middle" font-size="11" fill="#fff">Inicia negotiation</text>
+            <text x="800" y="1178" text-anchor="middle" font-size="11" fill="#fff">Si paid → firma/pago</text>
+
+            <path d="M 490 1210 L 490 1250" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 6 -->
+            <text x="490" y="1282" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 6: TRANSFERENCIA</text>
+            <rect x="40" y="1310" width="280" height="110" rx="14" fill="url(#gradProv)"/>
+            <text x="180" y="1344" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">CP/DP Proveedor</text>
+            <text x="180" y="1366" text-anchor="middle" font-size="11" fill="#fff">Autoriza (CP) • Transfiere (DP)</text>
+            <text x="180" y="1388" text-anchor="middle" font-size="11" fill="#fff">Policy enforcement</text>
+
+            <rect x="660" y="1310" width="280" height="110" rx="14" fill="url(#gradCons)"/>
+            <text x="800" y="1344" text-anchor="middle" font-size="14" fill="#fff" font-weight="900">Consumidor</text>
+            <text x="800" y="1366" text-anchor="middle" font-size="11" fill="#fff">Recibe bajo contrato</text>
+            <text x="800" y="1388" text-anchor="middle" font-size="11" fill="#fff">Paid → habilitar tras pago</text>
+
+            <path d="M 490 1420 L 490 1460" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 7 -->
+            <text x="490" y="1492" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 7: EVIDENCIA / AUDITORÍA</text>
+            <rect x="350" y="1520" width="280" height="90" rx="14" fill="url(#gradClear)"/>
+            <text x="490" y="1552" text-anchor="middle" font-size="14" fill="#333" font-weight="900">Clearing House / Ledger</text>
+            <text x="490" y="1574" text-anchor="middle" font-size="11" fill="#333">Eventos + hashes • (paid: consumo)</text>
+
+            <path d="M 490 1610 L 490 1650" stroke="#667eea" stroke-width="3" marker-end="url(#arrowhead)"/>
+
+            <!-- Etapa 8 -->
+            <text x="490" y="1682" text-anchor="middle" font-size="16" font-weight="900" fill="#5a67d8">ETAPA 8: ROTACIÓN / REVOCACIÓN</text>
+            <rect x="350" y="1710" width="280" height="60" rx="14" fill="url(#gradId)"/>
+            <text x="490" y="1736" text-anchor="middle" font-size="13" fill="#fff" font-weight="900">Certs/tokens/contracts expiran → bloquear/renovar</text>
+
+          </svg>
+        </div>
+
+        <div class="legend">
+          <h3>Leyenda</h3>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+            <div class="legend-label">Proveedor / Conector proveedor</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+            <div class="legend-label">Consumidor / Conector consumidor</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+            <div class="legend-label">Servicios comunes (Broker, Portales, etc.)</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);"></div>
+            <div class="legend-label">Identidad/Trust (mTLS, OIDC, claims)</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
+            <div class="legend-label">Evidencias (Clearing/Ledger)</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-label">
+              <span class="badge free"><span class="tiny-dot"></span>Gratis</span>
+              <span style="margin-left:8px" class="badge paid"><span class="tiny-dot"></span>De pago</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <strong>Resultado de la vista completa:</strong> puedes ubicar quién actúa en cada etapa (Operador/Proveedor/Consumidor),
+          qué componentes intervienen (CP/DP/IdP/Broker/Clearing) y dónde se refleja “gratis vs de pago”.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ---------------------------
+    // Phase navigation
+    // ---------------------------
+    const phases = [
+      { id: "intro", label: "Intro" },
+      { id: "0", label: "Etapa 0: Operador" },
+      { id: "1", label: "Etapa 1: Onboarding" },
+      { id: "2", label: "Etapa 2: Conector" },
+      { id: "3", label: "Etapa 3: Assets" },
+      { id: "4", label: "Etapa 4: Descubrimiento" },
+      { id: "5", label: "Etapa 5: Contrato" },
+      { id: "6", label: "Etapa 6: Transferencia" },
+      { id: "7", label: "Etapa 7: Evidencia" },
+      { id: "8", label: "Etapa 8: Revocación" },
+      { id: "glossary", label: "Glosario" },
+      { id: "full", label: "Vista completa" }
+    ];
+
+    const selector = document.getElementById("phaseSelector");
+    let currentPhaseIdx = 0;
+
+    function mountButtons() {
+      selector.innerHTML = "";
+      phases.forEach((p, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "phase-btn" + (idx === 0 ? " active" : "");
+        btn.textContent = p.label;
+        btn.onclick = () => showPhase(idx);
+        selector.appendChild(btn);
+      });
+    }
+
+    function showPhase(idx) {
+      const all = document.querySelectorAll(".phase");
+      all.forEach(el => el.classList.remove("active"));
+
+      const buttons = document.querySelectorAll(".phase-btn");
+      buttons.forEach(b => b.classList.remove("active"));
+      if (buttons[idx]) buttons[idx].classList.add("active");
+
+      const phaseId = phases[idx].id;
+      const target = document.getElementById("phase-" + phaseId);
+      if (target) target.classList.add("active");
+
+      currentPhaseIdx = idx;
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // Keyboard nav
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") showPhase((currentPhaseIdx + 1) % phases.length);
+      if (e.key === "ArrowLeft") showPhase((currentPhaseIdx - 1 + phases.length) % phases.length);
+    });
+
+    // ---------------------------
+    // Glossary
+    // ---------------------------
+    const glossary = [
+      { code: "CP / Control Plane", type: "Plano", desc: "Parte del conector que gestiona catálogo, assets, policies, offers, negociación, acuerdos (agreements) y autorización de transferencias.", where: "Aparece fuerte en Etapas 2–6. En Etapa 6 decide si se transfiere o no." },
+      { code: "DP / Data Plane", type: "Plano", desc: "Parte del conector que mueve los datos (bytes). Accede a S3/API/DB y ejecuta transferencias (pull/push/proxy) bajo control del CP.", where: "Participa principalmente en Etapa 6. No es obligatorio en Etapas 0–5." },
+      { code: "Conector", type: "Componente", desc: "Nodo técnico del participante (proveedor/consumidor) para intercambiar datos con soberanía: expone catálogo (CP) y mueve datos (DP).", where: "Etapas 2–6. En Etapa 3 publica assets/offers; en 5 negocia; en 6 transfiere." },
+      { code: "EDC", type: "Implementación", desc: "Eclipse Dataspace Connector. Implementa patrones de catálogo, negociación y transferencia (CP/DP).", where: "Se usa como base en múltiples ecosistemas. Encaja en Etapas 2–6." },
+      { code: "Tractus-X", type: "Implementación", desc: "Distribución/stack de Catena-X basada en EDC (más componentes y convenciones del ecosistema).", where: "Si usas Tractus-X, normalmente estás alineado a Catena-X (no necesariamente 'IDS clásico' literal)." },
+      { code: "Catena-X", type: "Ecosistema", desc: "Ecosistema de intercambio de datos industrial (automoción). Define reglas, perfiles y componentes recomendados.", where: "Afecta Etapas 0–3 (gobernanza, identidad, catálogo) y 5–8 (contratos/evidencia/operación)." },
+      { code: "Gaia-X", type: "Ecosistema", desc: "Marco europeo de confianza y soberanía (principios + trust services).", where: "Influye en Etapas 0–1 (identidad, confianza, cumplimiento)." },
+      { code: "IDS / IDSA", type: "Estándar", desc: "International Data Spaces (asociación/arquitectura). Conceptos: conectores, políticas, confianza, evidencias.", where: "La lógica conceptual se ve en todas las etapas; implementaciones varían por ecosistema." },
+      { code: "Broker / Metadata Broker", type: "Componente", desc: "Catálogo central (o indexador) de metadatos para descubrimiento. No accede a los datos reales.", where: "Etapas 0, 3 y 4 (publicación/indexación y búsqueda)." },
+      { code: "Catálogo", type: "Función", desc: "Endpoint del Control Plane que expone assets/offers/policies. Puede ser consultado por conectores/portales.", where: "Etapas 3 y 4. Es el 'source of truth' del proveedor." },
+      { code: "Policy (ejecutable)", type: "Regla", desc: "Condiciones técnicas/operativas: roles, propósito, vigencia, límites, geografía, obligaciones (atribución, no redistribución).", where: "Se define en Etapa 3, se evalúa en Etapa 5 (negociación) y se aplica en Etapa 6 (transferencia)." },
+      { code: "Offer (Oferta)", type: "Objeto", desc: "Paquete publicable: Asset + Policy + términos (incluye precio y estado publicado/despublicado).", where: "Etapa 3 (creación/publicación), Etapa 4 (se descubre), Etapa 5 (se negocia)." },
+      { code: "Agreement / Contract Agreement", type: "Contrato", desc: "Resultado de una negociación exitosa. Habilita transferencia bajo policy. Vive operativamente en los conectores.", where: "Se crea en Etapa 5 y se usa como 'llave' en Etapa 6." },
+      { code: "Clearing House", type: "Componente", desc: "Servicio de evidencias: registra eventos (contrato/transfer) con hashes/firmas/timestamps para auditoría y no repudio. No guarda datos.", where: "Principalmente Etapa 7 (y opcional en 5–6)." },
+      { code: "IdP (Identity Provider)", type: "Componente", desc: "Proveedor de identidad (OIDC) para emitir tokens y autenticar participantes/usuarios.", where: "Etapas 0–2 (config), 5–6 (validación/revalidación)." },
+      { code: "OIDC", type: "Protocolo", desc: "OpenID Connect. Basado en OAuth 2.0, emite tokens (JWT) con claims.", where: "Etapas 1–2 (setup), 5–6 (validación tokens)." },
+      { code: "JWT", type: "Token", desc: "JSON Web Token. Puede transportar claims/roles, expiración y audiencias.", where: "Etapas 2, 5 y 6." },
+      { code: "mTLS", type: "Seguridad", desc: "Mutual TLS. Autentica ambos extremos con certificados; si el cert expira/revoca, falla la conexión.", where: "Etapas 1–2 (setup) y 6 (en cada transferencia/llamada)." },
+      { code: "CA / Trust Anchors", type: "Seguridad", desc: "Autoridades y anclas de confianza para validar certificados. Puede incluir CRL/OCSP para revocación.", where: "Etapas 0–2 y 8." },
+      { code: "PEP / PDP", type: "Seguridad", desc: "Policy Enforcement Point / Policy Decision Point. PEP aplica, PDP decide. En conectores, CP/DP suelen implementar enforcement/decisión.", where: "Etapas 5–6 (decisión y aplicación real)." },
+      { code: "S3 Signed URL", type: "Entrega", desc: "URL temporal firmada para descargar un objeto S3 sin exponer credenciales permanentes. Útil como entrega controlada.", where: "Etapa 6 (modo MVP o patrón de entrega controlada)." },
+      { code: "KMS", type: "AWS", desc: "AWS Key Management Service. Para cifrado y firmas (según tu diseño).", where: "Etapas 5–8 (firmas/evidencias/rotación)." },
+      { code: "S3 Object Lock", type: "AWS", desc: "Inmutabilidad WORM para evidencias/contratos y prevención de borrado.", where: "Etapas 5 y 7." },
+      { code: "QLDB", type: "AWS", desc: "Ledger inmutable administrado. Alternativa para trazabilidad y evidencias.", where: "Etapa 7 (opcional)." },
+      { code: "ACM / WAF", type: "AWS", desc: "AWS Certificate Manager (TLS) y Web Application Firewall (protección).", where: "Etapas 0–2 (exposición segura)." },
+      { code: "Pago / Monetización", type: "Negocio", desc: "Assets de pago: el precio se define en la Offer; el contrato se condiciona al pago; la transferencia se bloquea/limita hasta confirmación; los consumos se registran para facturación.", where: "Etapas 3 (Offer), 5 (Contrato), 6 (Transfer), 7 (Auditoría/consumo)." }
+    ];
+
+    function renderGlossary(filter = "") {
+      const grid = document.getElementById("glossGrid");
+      const q = filter.trim().toLowerCase();
+      const items = glossary.filter(t =>
+        !q ||
+        t.code.toLowerCase().includes(q) ||
+        t.type.toLowerCase().includes(q) ||
+        t.desc.toLowerCase().includes(q) ||
+        t.where.toLowerCase().includes(q)
+      );
+
+      grid.innerHTML = items.map(t => `
+        <div class="term">
+          <div class="term-head">
+            <div class="term-code">${t.code}</div>
+            <div class="term-type">${t.type}</div>
+          </div>
+          <div class="term-desc">${t.desc}</div>
+          <div class="term-where"><strong>Dónde aparece:</strong> ${t.where}</div>
+        </div>
+      `).join("");
+    }
+
+    // Init
+    mountButtons();
+    renderGlossary("");
+
+    const search = document.getElementById("glossSearch");
+    if (search) {
+      search.addEventListener("input", (e) => renderGlossary(e.target.value));
+    }
+  </script>
+</body>
+</html>
